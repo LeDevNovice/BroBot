@@ -1,0 +1,27 @@
+{
+  "name": "brobot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dist/bot.js",
+  "scripts": {
+    "dev": "tsx watch src/bot.ts",
+    "build": "npm run db:generate && tsc",
+    "start": "node dist/bot.js",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "postinstall": "npm run db:generate"
+  },
+  "author": "LeDevNovice",
+  "license": "MIT",
+  "dependencies": {
+    "@prisma/client": "^6.16.1",
+    "discord.js": "^14.22.1",
+    "dotenv": "^17.2.2"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.3",
+    "prisma": "^6.16.1",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2"
+  }
+}
