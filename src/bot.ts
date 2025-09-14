@@ -9,6 +9,7 @@ import {
     Interaction
 } from 'discord.js';
 import { config } from 'dotenv';
+import express from 'express';
 
 import { db } from './services/database';
 import { commands } from './commands';
@@ -26,6 +27,42 @@ interface Command {
     data: any;
     execute: (interaction: ChatInputCommandInteraction) => Promise<any>;
 }
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.get('/', (req, res) => {
+    res.json({
+        status: 'online',
+        bot: 'BroBot',
+        uptime: process.uptime(),
+        timestamp: new Date().toISOString()
+    });
+});
+
+app.get('/health', (req, res) => {
+    res.json({
+        status: 'healthy',
+        discord: client.isReady() ? 'connected' : 'disconnected',
+        database: 'connected',
+        memory: process.memoryUsage(),
+        uptime: process.uptime()
+    });
+});
+
+app.get('/stats', (req, res) => {
+    if (!client.isReady()) {
+        return res.status(503).json({ error: 'Bot not ready' });
+    }
+
+    res.json({
+        guilds: client.guilds.cache.size,
+        users: client.users.cache.size,
+        commands: commands.length,
+        ping: client.ws.ping,
+        uptime: process.uptime()
+    });
+});
 
 const client = new Client({
     intents: [GatewayIntentBits.Guilds]
@@ -96,6 +133,12 @@ async function deployCommands() {
     }
 }
 
+app.listen(PORT, () => {
+    console.log(`🌐 Serveur HTTP démarré sur le port ${PORT}`);
+});
+
+client.login(process.env.DISCORD_TOKEN);
+
 process.on('SIGINT', async () => {
     console.log('\n🛑 Arrêt du bot...');
     try {
@@ -107,4 +150,13 @@ process.on('SIGINT', async () => {
     process.exit(0);
 });
 
-client.login(process.env.DISCORD_TOKEN);
+process.on('SIGTERM', async () => {
+    console.log('\n🛑 Arrêt du bot (SIGTERM)...');
+    try {
+        await db.disconnect();
+    } catch (error) {
+        console.error('Erreur lors de la déconnexion DB:', error);
+    }
+    client.destroy();
+    process.exit(0);
+});
