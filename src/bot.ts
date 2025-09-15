@@ -15,12 +15,17 @@ import axios from 'axios';
 import { db } from './services/database';
 import { commands } from './commands';
 import { handleReviewSubmit } from './commands/reviewModal';
+import { ErrorHandler } from './utils/errorHandler';
+import { logger } from './utils/logger';
 
 config();
 
 if (!process.env.DISCORD_TOKEN || !process.env.CLIENT_ID || !process.env.DATABASE_URL) {
-    console.error('❌ Variables d\'environnement manquantes!');
-    console.error('Vérifiez: DISCORD_TOKEN, CLIENT_ID, DATABASE_URL');
+    logger.error('Missing required environment variables', undefined, {
+        hasToken: !!process.env.DISCORD_TOKEN,
+        hasClientId: !!process.env.CLIENT_ID,
+        hasDatabaseUrl: !!process.env.DATABASE_URL
+    });
     process.exit(1);
 }
 
@@ -32,7 +37,7 @@ interface Command {
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.get('/', (req, res) => {
+app.get('/', (__, res) => {
     res.json({
         status: 'online',
         bot: 'BroBot',
@@ -41,7 +46,7 @@ app.get('/', (req, res) => {
     });
 });
 
-app.get('/health', (req, res) => {
+app.get('/health', (__, res) => {
     res.json({
         status: 'healthy',
         discord: client.isReady() ? 'connected' : 'disconnected',
@@ -75,15 +80,18 @@ commands.forEach(command => {
 });
 
 client.once(Events.ClientReady, async (readyClient) => {
-    console.log(`🤖 ${readyClient.user.tag} est connecté!`);
+    logger.info(`Bot connected successfully`, {
+        botTag: readyClient.user.tag,
+        guildCount: readyClient.guilds.cache.size
+    });
 
     try {
         await db.connect();
         await deployCommands();
-
-        console.log('✅ BroBot est prêt!');
+        logger.info('BroBot initialization completed');
     } catch (error) {
-        console.error('❌ Erreur lors de l\'initialisation:', error);
+        logger.error('Bot initialization failed', error as Error);
+        process.exit(1);
     }
 });
 
@@ -98,21 +106,7 @@ client.on(Events.InteractionCreate, async (interaction: Interaction) => {
             await handleReviewSubmit(interaction);
         }
     } catch (error) {
-        console.error('❌ Erreur interaction:', error);
-
-        const errorMessage = { content: '❌ Une erreur est survenue.', ephemeral: true };
-
-        if (interaction.isRepliable()) {
-            try {
-                if (interaction.replied || interaction.deferred) {
-                    await interaction.followUp(errorMessage);
-                } else {
-                    await interaction.reply(errorMessage);
-                }
-            } catch (replyError) {
-                console.error('❌ Erreur lors de la réponse:', replyError);
-            }
-        }
+        await ErrorHandler.handleInteractionError(error, interaction);
     }
 });
 
@@ -121,21 +115,22 @@ async function deployCommands() {
         const commandsData = commands.map(command => command.data.toJSON());
         const rest = new REST().setToken(process.env.DISCORD_TOKEN!);
 
-        console.log('🔄 Déploiement des commandes slash...');
+        logger.info('Deploying slash commands...');
 
         await rest.put(
             Routes.applicationCommands(process.env.CLIENT_ID!),
             { body: commandsData }
         );
 
-        console.log('✅ Commandes déployées avec succès!');
+        logger.info('Slash commands deployed successfully');
     } catch (error) {
-        console.error('❌ Erreur déploiement commandes:', error);
+        logger.error('Failed to deploy commands', error as Error);
+        throw error;
     }
 }
 
 app.listen(PORT, () => {
-    console.log(`🌐 Serveur HTTP démarré sur le port ${PORT}`);
+    logger.info(`HTTP server started`, { port: PORT });
 });
 
 const url = process.env.RENDER_URL || `https://brobot-b5j6.onrender.com/health`;
@@ -149,40 +144,51 @@ function reloadWebsite() {
         }
     })
         .then(response => {
-            console.log(`✅ Keep-alive successful at ${new Date().toISOString()}: Status ${response.status}`);
+            logger.debug('Keep-alive successful', { status: response.status });
         })
         .catch(error => {
-            console.error(`❌ Keep-alive failed at ${new Date().toISOString()}:`, error.message);
+            logger.warn('Keep-alive failed', { error: error.message });
         });
 }
 
 setTimeout(() => {
-    console.log('🔄 Démarrage du keep-alive...');
+    logger.info('Starting keep-alive service');
     setInterval(reloadWebsite, interval);
-
     reloadWebsite();
 }, 5000);
 
-client.login(process.env.DISCORD_TOKEN);
+process.on('uncaughtException', (error) => {
+    logger.error('Uncaught exception', error);
+    ErrorHandler.handleProcessError(error);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    logger.error('Unhandled rejection', new Error(String(reason)), { promise });
+    ErrorHandler.handleProcessError(new Error(String(reason)));
+});
 
 process.on('SIGINT', async () => {
-    console.log('\n🛑 Arrêt du bot...');
+    logger.info('Shutting down bot (SIGINT)');
     try {
         await db.disconnect();
+        client.destroy();
+        process.exit(0);
     } catch (error) {
-        console.error('Erreur lors de la déconnexion DB:', error);
+        logger.error('Error during shutdown', error as Error);
+        process.exit(1);
     }
-    client.destroy();
-    process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
-    console.log('\n🛑 Arrêt du bot (SIGTERM)...');
+    logger.info('Shutting down bot (SIGTERM)');
     try {
         await db.disconnect();
+        client.destroy();
+        process.exit(0);
     } catch (error) {
-        console.error('Erreur lors de la déconnexion DB:', error);
+        logger.error('Error during shutdown', error as Error);
+        process.exit(1);
     }
-    client.destroy();
-    process.exit(0);
 });
+
+client.login(process.env.DISCORD_TOKEN);
