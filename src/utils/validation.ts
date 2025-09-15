@@ -1,9 +1,9 @@
 import { WORK_TYPES, WorkType } from '../types';
 import { ValidationError, AuthorizationError } from './errors';
+import { config } from '../config/env';
 
 export function isAuthorized(discordId: string): boolean {
-    const authorizedUsers = process.env.AUTHORIZED_USERS?.split(',') || [];
-    return authorizedUsers.includes(discordId);
+    return config.AUTHORIZED_USERS.includes(discordId);
 }
 
 export function validateAuthorization(discordId: string): void {

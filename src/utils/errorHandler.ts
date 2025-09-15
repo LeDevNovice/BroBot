@@ -2,6 +2,7 @@ import { Interaction } from 'discord.js';
 
 import { BotError } from './errors';
 import { logger } from './logger';
+import { isProduction } from '../config/env';
 
 interface ErrorContext {
     userId: string;
@@ -76,7 +77,7 @@ export class ErrorHandler {
     static handleProcessError(error: Error): void {
         logger.error('Unhandled process error', error);
 
-        if (process.env.NODE_ENV === 'production') {
+        if (isProduction()) {
             setTimeout(() => {
                 process.exit(1);
             }, 5000);

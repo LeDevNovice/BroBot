@@ -8,26 +8,15 @@ import {
     ChatInputCommandInteraction,
     Interaction
 } from 'discord.js';
-import { config } from 'dotenv';
 import express, { Request, Response } from 'express';
 import axios from 'axios';
 
+import { config, isDevelopment } from './config/env';
 import { db } from './services/database';
 import { commands } from './commands';
 import { handleReviewSubmit } from './commands/reviewModal';
 import { ErrorHandler } from './utils/errorHandler';
 import { logger } from './utils/logger';
-
-config();
-
-if (!process.env.DISCORD_TOKEN || !process.env.CLIENT_ID || !process.env.DATABASE_URL) {
-    logger.error('Missing required environment variables', undefined, {
-        hasToken: !!process.env.DISCORD_TOKEN,
-        hasClientId: !!process.env.CLIENT_ID,
-        hasDatabaseUrl: !!process.env.DATABASE_URL
-    });
-    process.exit(1);
-}
 
 interface Command {
     data: any;
@@ -35,12 +24,12 @@ interface Command {
 }
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
 app.get('/', (_req: Request, res: Response) => {
     res.json({
         status: 'online',
         bot: 'BroBot',
+        environment: config.NODE_ENV,
         uptime: process.uptime(),
         timestamp: new Date().toISOString()
     });
@@ -51,12 +40,13 @@ app.get('/health', (_req: Request, res: Response) => {
         status: 'healthy',
         discord: client.isReady() ? 'connected' : 'disconnected',
         database: 'connected',
+        environment: config.NODE_ENV,
         memory: process.memoryUsage(),
         uptime: process.uptime()
     });
 });
 
-app.get('/stats', (req: Request, res: Response) => {
+app.get('/stats', (_req: Request, res: Response) => {
     if (!client.isReady()) {
         return res.status(503).json({ error: 'Bot not ready' });
     }
@@ -82,7 +72,8 @@ commands.forEach(command => {
 client.once(Events.ClientReady, async (readyClient) => {
     logger.info(`Bot connected successfully`, {
         botTag: readyClient.user.tag,
-        guildCount: readyClient.guilds.cache.size
+        guildCount: readyClient.guilds.cache.size,
+        environment: config.NODE_ENV
     });
 
     try {
@@ -113,12 +104,12 @@ client.on(Events.InteractionCreate, async (interaction: Interaction) => {
 async function deployCommands() {
     try {
         const commandsData = commands.map(command => command.data.toJSON());
-        const rest = new REST().setToken(process.env.DISCORD_TOKEN!);
+        const rest = new REST().setToken(config.DISCORD_TOKEN);
 
         logger.info('Deploying slash commands...');
 
         await rest.put(
-            Routes.applicationCommands(process.env.CLIENT_ID!),
+            Routes.applicationCommands(config.CLIENT_ID),
             { body: commandsData }
         );
 
@@ -129,33 +120,38 @@ async function deployCommands() {
     }
 }
 
-app.listen(PORT, () => {
-    logger.info(`HTTP server started`, { port: PORT });
+app.listen(config.PORT, () => {
+    logger.info(`HTTP server started`, { port: config.PORT });
 });
 
-const url = process.env.RENDER_URL || `https://brobot-b5j6.onrender.com/health`;
-const interval = 30000;
+if (config.RENDER_URL) {
+    const interval = 30000;
 
-function reloadWebsite() {
-    axios.get(url, {
-        timeout: 10000,
-        headers: {
-            'User-Agent': 'BroBot-KeepAlive/1.0'
-        }
-    })
-        .then(response => {
-            logger.debug('Keep-alive successful', { status: response.status });
+    function reloadWebsite() {
+        if (!config.RENDER_URL) return;
+
+        axios.get(config.RENDER_URL, {
+            timeout: 10000,
+            headers: {
+                'User-Agent': 'BroBot-KeepAlive/1.0'
+            }
         })
-        .catch(error => {
-            logger.warn('Keep-alive failed', { error: error.message });
-        });
-}
+            .then(response => {
+                logger.debug('Keep-alive successful', { status: response.status });
+            })
+            .catch(error => {
+                logger.warn('Keep-alive failed', { error: error.message });
+            });
+    }
 
-setTimeout(() => {
-    logger.info('Starting keep-alive service');
-    setInterval(reloadWebsite, interval);
-    reloadWebsite();
-}, 5000);
+    setTimeout(() => {
+        logger.info('Starting keep-alive service', { url: config.RENDER_URL });
+        setInterval(reloadWebsite, interval);
+        reloadWebsite();
+    }, 5000);
+} else if (isDevelopment()) {
+    logger.info('Keep-alive service disabled (no RENDER_URL configured)');
+}
 
 process.on('uncaughtException', (error) => {
     logger.error('Uncaught exception', error);
@@ -191,4 +187,4 @@ process.on('SIGTERM', async () => {
     }
 });
 
-client.login(process.env.DISCORD_TOKEN);
+client.login(config.DISCORD_TOKEN);
