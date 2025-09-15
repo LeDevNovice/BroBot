@@ -9,7 +9,7 @@ import {
     Interaction
 } from 'discord.js';
 import { config } from 'dotenv';
-import express from 'express';
+import express, { Request, Response } from 'express';
 import axios from 'axios';
 
 import { db } from './services/database';
@@ -37,7 +37,7 @@ interface Command {
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.get('/', (__, res) => {
+app.get('/', (_req: Request, res: Response) => {
     res.json({
         status: 'online',
         bot: 'BroBot',
@@ -46,7 +46,7 @@ app.get('/', (__, res) => {
     });
 });
 
-app.get('/health', (__, res) => {
+app.get('/health', (_req: Request, res: Response) => {
     res.json({
         status: 'healthy',
         discord: client.isReady() ? 'connected' : 'disconnected',
@@ -56,7 +56,7 @@ app.get('/health', (__, res) => {
     });
 });
 
-app.get('/stats', (req, res) => {
+app.get('/stats', (req: Request, res: Response) => {
     if (!client.isReady()) {
         return res.status(503).json({ error: 'Bot not ready' });
     }
