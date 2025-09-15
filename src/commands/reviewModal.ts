@@ -12,18 +12,18 @@ import { db } from '../services/database';
 import { logger } from '../utils/logger';
 import {
     validateAuthorization,
+    validateWorkTypeStrict,
     validateRatingStrict,
     validateTitle,
     validateComment,
     formatWorkType,
     formatRating
 } from '../utils/validation';
-import { WorkType } from '../types';
 
-export function createReviewModal(workType: WorkType): ModalBuilder {
+export function createReviewModal(): ModalBuilder {
     const modal = new ModalBuilder()
-        .setCustomId(`review_modal_${workType}`)
-        .setTitle(`✨ Ajouter une review - ${formatWorkType(workType)}`);
+        .setCustomId('review_modal')
+        .setTitle('✨ Ajouter une review');
 
     const titleInput = new TextInputBuilder()
         .setCustomId('title')
@@ -32,6 +32,14 @@ export function createReviewModal(workType: WorkType): ModalBuilder {
         .setPlaceholder('Ex: The Matrix, One Piece...')
         .setRequired(true)
         .setMaxLength(100);
+
+    const typeInput = new TextInputBuilder()
+        .setCustomId('type')
+        .setLabel('Type d\'œuvre')
+        .setStyle(TextInputStyle.Short)
+        .setPlaceholder('film, serie, manga, comics, roman, livre, anime, jeu')
+        .setRequired(true)
+        .setMaxLength(20);
 
     const ratingInput = new TextInputBuilder()
         .setCustomId('rating')
@@ -51,6 +59,7 @@ export function createReviewModal(workType: WorkType): ModalBuilder {
 
     modal.addComponents(
         new ActionRowBuilder<ModalActionRowComponentBuilder>().addComponents(titleInput),
+        new ActionRowBuilder<ModalActionRowComponentBuilder>().addComponents(typeInput),
         new ActionRowBuilder<ModalActionRowComponentBuilder>().addComponents(ratingInput),
         new ActionRowBuilder<ModalActionRowComponentBuilder>().addComponents(commentInput)
     );
@@ -61,26 +70,25 @@ export function createReviewModal(workType: WorkType): ModalBuilder {
 export async function handleReviewSubmit(interaction: ModalSubmitInteraction) {
     validateAuthorization(interaction.user.id);
 
-    // Extraire le type du customId du modal
-    const workType = interaction.customId.replace('review_modal_', '') as WorkType;
-
     const titleInput = interaction.fields.getTextInputValue('title');
+    const typeInput = interaction.fields.getTextInputValue('type');
     const ratingInput = interaction.fields.getTextInputValue('rating');
     const commentInput = interaction.fields.getTextInputValue('comment');
 
     const title = validateTitle(titleInput);
+    const type = validateWorkTypeStrict(typeInput);
     const rating = validateRatingStrict(ratingInput);
     const comment = validateComment(commentInput);
 
     const user = await db.findOrCreateUser(interaction.user.id, interaction.user.username);
-    const review = await db.createReview(user.id, { title, type: workType, rating, comment });
+    const review = await db.createReview(user.id, { title, type, rating, comment });
 
     const embed = new EmbedBuilder()
         .setColor('#00FF7F')
         .setTitle('✅ Review ajoutée !')
         .addFields(
             { name: '🎯 Œuvre', value: title, inline: true },
-            { name: '📂 Type', value: formatWorkType(workType), inline: true },
+            { name: '📂 Type', value: formatWorkType(type), inline: true },
             { name: '⭐ Note', value: formatRating(rating), inline: true },
             { name: '💭 Commentaire', value: comment.length > 200 ? comment.substring(0, 200) + '...' : comment, inline: false }
         )
@@ -94,7 +102,7 @@ export async function handleReviewSubmit(interaction: ModalSubmitInteraction) {
         username: interaction.user.username,
         reviewId: review.id,
         reviewTitle: title,
-        reviewType: workType,
+        reviewType: type,
         reviewRating: rating
     });
 }

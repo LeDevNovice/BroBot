@@ -40,6 +40,17 @@ export function validateWorkType(type: string): WorkType | null {
     return finalType in WORK_TYPES ? finalType as WorkType : null;
 }
 
+export function validateWorkTypeStrict(type: string): WorkType {
+    const validType = validateWorkType(type);
+    if (!validType) {
+        throw new ValidationError(
+            'Type d\'œuvre invalide. Types acceptés: film, serie, manga, comics, roman, livre, anime, jeu',
+            'type'
+        );
+    }
+    return validType;
+}
+
 export function validateRating(rating: string): number | null {
     const num = parseInt(rating);
     return (num >= 0 && num <= 5) ? num : null;

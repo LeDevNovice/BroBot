@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  postgres-test:
+    image: postgres:15-alpine
+    container_name: brobot-postgres-test
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: brobot_user
+      POSTGRES_PASSWORD: brobot_password
+      POSTGRES_DB: brobot_test_db
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data/pgdata
+      - ./scripts/init-test-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U brobot_user -d brobot_test_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Service optionnel pour adminer (interface web PostgreSQL)
+  adminer:
+    image: adminer:4-standalone
+    container_name: brobot-adminer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres-test
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres-test
+
+volumes:
+  postgres_test_data:
+    driver: local
