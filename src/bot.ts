@@ -10,6 +10,7 @@ import {
 } from 'discord.js';
 import { config } from 'dotenv';
 import express from 'express';
+import axios from 'axios';
 
 import { db } from './services/database';
 import { commands } from './commands';
@@ -136,6 +137,31 @@ async function deployCommands() {
 app.listen(PORT, () => {
     console.log(`🌐 Serveur HTTP démarré sur le port ${PORT}`);
 });
+
+const url = process.env.RENDER_URL || `https://brobot-b5j6.onrender.com/health`;
+const interval = 30000;
+
+function reloadWebsite() {
+    axios.get(url, {
+        timeout: 10000,
+        headers: {
+            'User-Agent': 'BroBot-KeepAlive/1.0'
+        }
+    })
+        .then(response => {
+            console.log(`✅ Keep-alive successful at ${new Date().toISOString()}: Status ${response.status}`);
+        })
+        .catch(error => {
+            console.error(`❌ Keep-alive failed at ${new Date().toISOString()}:`, error.message);
+        });
+}
+
+setTimeout(() => {
+    console.log('🔄 Démarrage du keep-alive...');
+    setInterval(reloadWebsite, interval);
+
+    reloadWebsite();
+}, 5000);
 
 client.login(process.env.DISCORD_TOKEN);
 
