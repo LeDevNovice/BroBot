@@ -55,7 +55,7 @@ export function createReviewModal(): ModalBuilder {
         .setStyle(TextInputStyle.Paragraph)
         .setPlaceholder('Votre avis sur cette œuvre...')
         .setRequired(true)
-        .setMaxLength(1000);
+        .setMaxLength(5000);
 
     modal.addComponents(
         new ActionRowBuilder<ModalActionRowComponentBuilder>().addComponents(titleInput),
