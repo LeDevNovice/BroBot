@@ -90,8 +90,8 @@ export async function handleReviewSubmit(interaction: ModalSubmitInteraction) {
             { name: '🎯 Œuvre', value: title, inline: true },
             { name: '📂 Type', value: formatWorkType(type), inline: true },
             { name: '⭐ Note', value: formatRating(rating), inline: true },
-            { name: '💭 Commentaire', value: comment, inline: false }
         )
+        .setDescription(comment)
         .setFooter({ text: interaction.user.username, iconURL: interaction.user.displayAvatarURL() })
         .setTimestamp();
 
