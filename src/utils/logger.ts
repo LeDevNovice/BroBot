@@ -1,3 +1,5 @@
+import { isDevelopment } from '../config/env';
+
 interface LogContext {
     userId?: string;
     guildId?: string;
@@ -32,7 +34,7 @@ class Logger {
     }
 
     debug(message: string, context?: LogContext): void {
-        if (process.env.NODE_ENV !== 'production') {
+        if (isDevelopment()) {
             console.debug(this.formatMessage('debug', message, context));
         }
     }
