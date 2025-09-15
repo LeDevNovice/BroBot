@@ -13,31 +13,17 @@ import { WORK_TYPES, WorkType } from '../types';
 export const reviewCommand = {
     data: new SlashCommandBuilder()
         .setName('review')
-        .setDescription('Ajouter une review d\'œuvre')
-        .addStringOption(option =>
-            option
-                .setName('type')
-                .setDescription('Type d\'œuvre')
-                .setRequired(true)
-                .addChoices(
-                    ...Object.entries(WORK_TYPES).map(([key, value]) => ({
-                        name: value,
-                        value: key
-                    }))
-                )
-        ),
+        .setDescription('Ajouter une review d\'œuvre'),
 
     async execute(interaction: ChatInputCommandInteraction) {
         validateAuthorization(interaction.user.id);
 
-        const selectedType = interaction.options.getString('type', true) as WorkType;
-        const modal = createReviewModal(selectedType);
+        const modal = createReviewModal();
         await interaction.showModal(modal);
 
         logger.info('Review modal shown', {
             userId: interaction.user.id,
-            username: interaction.user.username,
-            selectedType
+            username: interaction.user.username
         });
     }
 };
