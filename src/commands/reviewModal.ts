@@ -55,7 +55,7 @@ export function createReviewModal(): ModalBuilder {
         .setStyle(TextInputStyle.Paragraph)
         .setPlaceholder('Votre avis sur cette œuvre...')
         .setRequired(true)
-        .setMaxLength(5000);
+        .setMaxLength(2000);
 
     modal.addComponents(
         new ActionRowBuilder<ModalActionRowComponentBuilder>().addComponents(titleInput),
@@ -90,7 +90,7 @@ export async function handleReviewSubmit(interaction: ModalSubmitInteraction) {
             { name: '🎯 Œuvre', value: title, inline: true },
             { name: '📂 Type', value: formatWorkType(type), inline: true },
             { name: '⭐ Note', value: formatRating(rating), inline: true },
-            { name: '💭 Commentaire', value: comment.length > 200 ? comment.substring(0, 200) + '...' : comment, inline: false }
+            { name: '💭 Commentaire', value: comment, inline: false }
         )
         .setFooter({ text: interaction.user.username, iconURL: interaction.user.displayAvatarURL() })
         .setTimestamp();
