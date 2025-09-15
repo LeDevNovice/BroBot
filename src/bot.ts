@@ -61,7 +61,7 @@ app.get('/stats', (req: Request, res: Response) => {
         return res.status(503).json({ error: 'Bot not ready' });
     }
 
-    res.json({
+    return res.json({
         guilds: client.guilds.cache.size,
         users: client.users.cache.size,
         commands: commands.length,
