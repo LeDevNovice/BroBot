@@ -80,7 +80,7 @@ export class DiscordBot {
             if (command) {
                 await command.execute(interaction);
             }
-        } else if (interaction.isModalSubmit() && interaction.customId === 'review_modal') {
+        } else if (interaction.isModalSubmit() && interaction.customId.startsWith('review_modal_')) {
             await handleReviewSubmit(interaction);
         }
     }
