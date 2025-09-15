@@ -3,8 +3,18 @@ import { PrismaClient } from '@prisma/client';
 import { ReviewData } from '../types';
 import { DatabaseError } from '../utils/errors';
 import { logger } from '../utils/logger';
+import { isDevelopment } from '../config/env';
 
-const prisma = new PrismaClient();
+const globalForPrisma = globalThis as unknown as {
+    prisma: PrismaClient | undefined;
+};
+
+const prisma = globalForPrisma.prisma ??
+    new PrismaClient({
+        log: isDevelopment() ? ['query', 'error', 'warn'] : ['error'],
+    });
+
+if (isDevelopment()) globalForPrisma.prisma = prisma;
 
 export class DatabaseService {
     async findOrCreateUser(discordId: string, username: string) {
@@ -72,6 +82,17 @@ export class DatabaseService {
             logger.info('Database disconnected');
         } catch (error) {
             logger.error('Failed to disconnect from database', error as Error);
+        }
+    }
+
+    async reconnect() {
+        try {
+            await this.disconnect();
+            await this.connect();
+            logger.info('Database reconnected successfully');
+        } catch (error) {
+            logger.error('Failed to reconnect to database', error as Error);
+            throw new DatabaseError('Impossible de se reconnecter à la base de données');
         }
     }
 }
