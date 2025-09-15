@@ -94,8 +94,8 @@ export function validateComment(comment: string): string {
         throw new ValidationError('Le commentaire ne peut pas être vide', 'comment');
     }
 
-    if (trimmed.length > 5000) {
-        throw new ValidationError('Le commentaire ne peut pas dépasser 5000 caractères', 'comment');
+    if (trimmed.length > 2000) {
+        throw new ValidationError('Le commentaire ne peut pas dépasser 2000 caractères', 'comment');
     }
 
     return trimmed;
