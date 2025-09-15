@@ -8,7 +8,6 @@ import { db } from '../services/database';
 import { createReviewModal } from './reviewModal';
 import { validateAuthorization, formatWorkType, formatRating } from '../utils/validation';
 import { logger } from '../utils/logger';
-import { WORK_TYPES, WorkType } from '../types';
 
 export const reviewCommand = {
     data: new SlashCommandBuilder()
@@ -16,7 +15,15 @@ export const reviewCommand = {
         .setDescription('Ajouter une review d\'œuvre'),
 
     async execute(interaction: ChatInputCommandInteraction) {
-        validateAuthorization(interaction.user.id);
+        try {
+            validateAuthorization(interaction.user.id);
+        } catch (error) {
+            await interaction.reply({
+                content: '❌ Vous n\'êtes pas autorisé à utiliser cette commande',
+                flags: ['Ephemeral']
+            });
+            return;
+        }
 
         const modal = createReviewModal();
         await interaction.showModal(modal);
@@ -34,9 +41,16 @@ export const myReviewsCommand = {
         .setDescription('Voir toutes vos reviews'),
 
     async execute(interaction: ChatInputCommandInteraction) {
-        validateAuthorization(interaction.user.id);
+        await interaction.deferReply({ flags: ['Ephemeral'] });
 
-        await interaction.deferReply();
+        try {
+            validateAuthorization(interaction.user.id);
+        } catch (error) {
+            await interaction.editReply({
+                content: '❌ Vous n\'êtes pas autorisé à utiliser cette commande'
+            });
+            return;
+        }
 
         const user = await db.findOrCreateUser(interaction.user.id, interaction.user.username);
         const reviews = await db.getUserReviews(user.id);
