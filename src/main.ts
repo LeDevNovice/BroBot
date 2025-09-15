@@ -13,8 +13,8 @@ class BroBot {
 
     constructor() {
         this.discordBot = new DiscordBot();
-        this.httpServer = new HttpServer(this.discordBot);
         this.keepAliveService = new KeepAliveService();
+        this.httpServer = new HttpServer(this.discordBot, this.keepAliveService);
         this.processManager = new ProcessManager(
             this.discordBot,
             this.httpServer,
