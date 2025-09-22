@@ -31,3 +31,39 @@ model Review {
 
   @@map("reviews")
 }
+
+model NewsItem {
+  id          String   @id @default(cuid())
+  externalId  String   @unique
+  title       String
+  description String?
+  url         String
+  publishedAt DateTime
+  source      String
+  category    String
+  imageUrl    String?
+  author      String?
+  sentAt      DateTime @default(now())
+  channelId   String
+  messageId   String?
+  threadId    String?
+
+  createdAt DateTime @default(now())
+
+  @@map("news_items")
+}
+
+model NewsChannelConfig {
+  id            String   @id @default(cuid())
+  channelId     String   @unique
+  categories    String[]
+  createThreads Boolean  @default(false)
+  addReactions  Boolean  @default(true)
+  maxPerHour    Int      @default(3)
+  enabled       Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("news_channel_configs")
+}
