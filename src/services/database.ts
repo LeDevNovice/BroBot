@@ -99,8 +99,15 @@ export class DatabaseService {
 
     async saveNewsItem(newsItem: NewsItem & { channelId: string; messageId?: string; threadId?: string }) {
         try {
-            return await prisma.newsItem.create({
-                data: {
+            return await prisma.newsItem.upsert({
+                where: {
+                    externalId: newsItem.id
+                },
+                update: {
+                    messageId: newsItem.messageId || undefined,
+                    threadId: newsItem.threadId || undefined
+                },
+                create: {
                     externalId: newsItem.id,
                     title: newsItem.title,
                     description: newsItem.description,
@@ -116,6 +123,14 @@ export class DatabaseService {
                 }
             });
         } catch (error) {
+            if (error instanceof Error && error.message.includes('Unique constraint failed')) {
+                logger.debug('News item already exists, skipping save', {
+                    externalId: newsItem.id,
+                    channelId: newsItem.channelId
+                });
+                return null;
+            }
+
             logger.error('Failed to save news item', error as Error, {
                 externalId: newsItem.id,
                 channelId: newsItem.channelId

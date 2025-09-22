@@ -1,4 +1,4 @@
-import { Client, TextChannel, EmbedBuilder, ThreadChannel } from 'discord.js';
+import { Client, TextChannel, EmbedBuilder } from 'discord.js';
 import { NewsItem, NewsCategory, NewsChannelConfig, NEWS_CATEGORIES } from '../types/news';
 import { logger } from '../utils/logger';
 import { db } from './database';
@@ -8,8 +8,9 @@ export class NewsService {
     private provider: RSSProvider;
     private client: Client;
     private intervalId?: NodeJS.Timeout;
-    private readonly checkInterval = 5 * 60 * 1000;
+    private readonly checkInterval = 30 * 60 * 1000;;
     private dryRun: boolean;
+    private isStarted: boolean = false;
 
     constructor(client: Client, dryRun: boolean = false) {
         this.client = client;
@@ -18,11 +19,12 @@ export class NewsService {
     }
 
     start(): void {
-        if (this.intervalId) {
-            logger.warn('News service already running');
+        if (this.isStarted || this.intervalId) {
+            logger.warn('News service already started, ignoring duplicate start request');
             return;
         }
 
+        this.isStarted = true;
         logger.info('Starting news service');
 
         setTimeout(() => {
@@ -38,6 +40,7 @@ export class NewsService {
         if (this.intervalId) {
             clearInterval(this.intervalId);
             this.intervalId = undefined;
+            this.isStarted = false;
             logger.info('News service stopped');
         }
     }
