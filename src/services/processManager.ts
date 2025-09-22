@@ -4,12 +4,14 @@ import { db } from './database';
 import { DiscordBot } from './discordBot';
 import { HttpServer } from './httpServer';
 import { KeepAliveService } from './keepAliveService';
+import { NewsService } from './newsService';
 
 export class ProcessManager {
     constructor(
         private discordBot: DiscordBot,
         private httpServer: HttpServer,
-        private keepAliveService: KeepAliveService
+        private keepAliveService: KeepAliveService,
+        private newsService?: NewsService
     ) {
         this.setupProcessHandlers();
     }
@@ -34,6 +36,11 @@ export class ProcessManager {
 
         try {
             this.keepAliveService.stop();
+
+            if (this.newsService) {
+                this.newsService.stop();
+            }
+
             await this.httpServer.stop();
             await this.discordBot.stop();
             await db.disconnect();
