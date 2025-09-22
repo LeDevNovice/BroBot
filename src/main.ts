@@ -3,22 +3,26 @@ import { db } from './services/database';
 import { DiscordBot } from './services/discordBot';
 import { HttpServer } from './services/httpServer';
 import { KeepAliveService } from './services/keepAliveService';
+import { NewsService } from './services/newsService';
 import { ProcessManager } from './services/processManager';
 
 class BroBot {
     private discordBot: DiscordBot;
     private httpServer: HttpServer;
     private keepAliveService: KeepAliveService;
+    private newsService: NewsService;
     private processManager: ProcessManager;
 
     constructor() {
         this.discordBot = new DiscordBot();
         this.keepAliveService = new KeepAliveService();
+        this.newsService = new NewsService(this.discordBot.getClient());
         this.httpServer = new HttpServer(this.discordBot, this.keepAliveService);
         this.processManager = new ProcessManager(
             this.discordBot,
             this.httpServer,
-            this.keepAliveService
+            this.keepAliveService,
+            this.newsService
         );
     }
 
@@ -37,6 +41,9 @@ class BroBot {
 
             logger.info('Starting keep-alive service...');
             this.keepAliveService.start();
+
+            logger.info('Starting news service...');
+            this.newsService.start();
 
             logger.info('🚀 BroBot started successfully!');
         } catch (error) {

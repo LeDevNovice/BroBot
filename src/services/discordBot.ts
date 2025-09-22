@@ -156,4 +156,8 @@ export class DiscordBot {
             ping: this.client.ws.ping
         };
     }
+
+    getClient(): Client {
+        return this.client;
+    }
 }

@@ -6,6 +6,7 @@ import {
 
 import { db } from '../services/database';
 import { createReviewModal } from './reviewModal';
+import { newsConfigCommand } from './newsCommands';
 import { validateAuthorization, formatWorkType, formatRating } from '../utils/validation';
 import { logger } from '../utils/logger';
 
@@ -96,4 +97,4 @@ export const myReviewsCommand = {
     }
 };
 
-export const commands = [reviewCommand, myReviewsCommand];
+export const commands = [reviewCommand, myReviewsCommand, newsConfigCommand];
