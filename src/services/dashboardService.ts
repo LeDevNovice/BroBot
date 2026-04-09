@@ -8,7 +8,7 @@ import {
 } from "./weatherService";
 
 interface SchedulerState {
-  nextTriggerAt: Date | null;
+  lastSentDate: string | null;
   lastSentAt: Date | null;
   totalSent: number;
   consecutiveFailures: number;
@@ -21,7 +21,7 @@ export class DashboardService {
   private isStarted = false;
 
   private state: SchedulerState = {
-    nextTriggerAt: null,
+    lastSentDate: null,
     lastSentAt: null,
     totalSent: 0,
     consecutiveFailures: 0,
@@ -47,11 +47,9 @@ export class DashboardService {
     }
 
     this.isStarted = true;
-    this.state.nextTriggerAt = this.computeNextTrigger();
 
     logger.info("DashboardService: started", {
       sendTime: `${this.SEND_HOUR}:${String(this.SEND_MINUTE).padStart(2, "0")} (${this.TIMEZONE})`,
-      nextTriggerAt: this.state.nextTriggerAt.toISOString(),
     });
 
     this.intervalId = setInterval(() => {
@@ -73,14 +71,40 @@ export class DashboardService {
   }
 
   private tick(): void {
-    if (!this.state.nextTriggerAt) return;
-
     const now = new Date();
 
-    if (now >= this.state.nextTriggerAt) {
-      logger.info("DashboardService: trigger time reached, sending dashboard");
+    const parts = new Intl.DateTimeFormat("fr-FR", {
+      timeZone: this.TIMEZONE,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).formatToParts(now);
 
-      this.state.nextTriggerAt = this.computeNextTrigger(now);
+    const get = (type: string) =>
+      parseInt(parts.find((p) => p.type === type)?.value ?? "0");
+
+    const parisHour = get("hour");
+    const parisMinute = get("minute");
+
+    const y = get("year");
+    const m = String(get("month")).padStart(2, "0");
+    const d = String(get("day")).padStart(2, "0");
+    const todayKey = `${y}-${m}-${d}`;
+
+    const isTargetTime =
+      parisHour === this.SEND_HOUR && parisMinute === this.SEND_MINUTE;
+    const alreadySentToday = this.state.lastSentDate === todayKey;
+
+    if (isTargetTime && !alreadySentToday) {
+      logger.info("DashboardService: trigger time reached, sending dashboard", {
+        parisTime: `${parisHour}:${String(parisMinute).padStart(2, "0")}`,
+        todayKey,
+      });
+
+      this.state.lastSentDate = todayKey;
 
       this.sendDashboard().catch((error) => {
         logger.error(
@@ -89,68 +113,6 @@ export class DashboardService {
         );
       });
     }
-  }
-
-  private computeNextTrigger(from: Date = new Date()): Date {
-    const formatter = new Intl.DateTimeFormat("fr-FR", {
-      timeZone: this.TIMEZONE,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: false,
-    });
-
-    const parts = formatter.formatToParts(from);
-    const get = (type: string) =>
-      parseInt(parts.find((p) => p.type === type)?.value ?? "0");
-
-    const year = get("year");
-    const month = get("month") - 1;
-    const day = get("day");
-    const currentHour = get("hour");
-    const currentMinute = get("minute");
-
-    const targetToday = this.parisTimeToUTC(
-      year,
-      month,
-      day,
-      this.SEND_HOUR,
-      this.SEND_MINUTE,
-    );
-
-    const alreadyPassedToday =
-      currentHour > this.SEND_HOUR ||
-      (currentHour === this.SEND_HOUR && currentMinute >= this.SEND_MINUTE);
-
-    if (alreadyPassedToday) {
-      const tomorrow = new Date(targetToday);
-      tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
-      return tomorrow;
-    }
-
-    return targetToday;
-  }
-
-  private parisTimeToUTC(
-    year: number,
-    month: number,
-    day: number,
-    hour: number,
-    minute: number,
-  ): Date {
-    const naive = new Date(Date.UTC(year, month, day, hour, minute, 0, 0));
-
-    const parisStr = naive.toLocaleString("fr-FR", { timeZone: this.TIMEZONE });
-    const utcStr = naive.toUTCString();
-
-    const parisDate = new Date(parisStr);
-    const utcDate = new Date(utcStr);
-    const offsetMs = parisDate.getTime() - utcDate.getTime();
-
-    return new Date(naive.getTime() - offsetMs);
   }
 
   async sendDashboard(): Promise<void> {
@@ -226,7 +188,7 @@ export class DashboardService {
       this.addWeatherFields(embed, weather);
     } else {
       embed.setDescription(
-        "*Météo indisponible ce matin, l'API fait la grasse matinée... 😴*\n\n" +
+        "*Météo indisponible ce matin — l'API fait la grasse matinée 😴*\n\n" +
           "Bonne journée quand même les gars ! ☕",
       );
     }
